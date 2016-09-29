@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "sourceMap": true,
+        "rootDir": "src",
+        "outDir": "dist/src"
+    },
+    "exclude": [
+        "node_modules",
+        "typings",
+        "test",
+        "dist"
+    ],
+    "types": [
+        "node",
+        "argon2"
+    ]
+}

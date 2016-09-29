@@ -1,0 +1,39 @@
+{
+  "name": "pwhaas-js",
+  "version": "1.0.0",
+  "description": "Client library for pwhaas, a password hashing service",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdconley/pwhaas-js.git"
+  },
+  "scripts": {
+    "prepublish": "tslint --project tslint.json && tsc -p .",
+    "pretest": "tslint --project tslint.json && tsc -p . && tsc -p test/tsconfig.json",
+    "test": "mocha dist/test/*.js"
+  },
+  "main": "dist/src/index.js",
+  "typings": "dist/src/index.d.ts",
+  "keywords": [
+    "password",
+    "hash",
+    "hashing",
+    "bcrypt",
+    "scrypt",
+    "argon2"
+  ],
+  "author": "JD Conley",
+  "license": "MIT",
+  "dependencies": {
+    "argon2": "^0.14.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^3.4.34",
+    "@types/debug": "0.0.29",
+    "@types/mocha": "^2.2.32",
+    "@types/node": "^6.0.41",
+    "chai": "^3.5.0",
+    "mocha": "^3.0.2",
+    "tslint": "^3.15.1",
+    "typescript": "^2.0.3"
+  }
+}

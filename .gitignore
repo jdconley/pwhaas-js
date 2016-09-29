@@ -1,3 +1,12 @@
+# VS Code project
+.vscode
+
+# Transpiled code
+dist
+
+# Types that are retrieved from typings
+typings
+
 # Logs
 logs
 *.log
