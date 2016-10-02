@@ -9,7 +9,7 @@
   "scripts": {
     "prepublish": "tslint --project tslint.json && tsc -p .",
     "pretest": "tslint --project tslint.json && tsc -p . && tsc -p test/tsconfig.json",
-    "test": "mocha dist/test/*.js"
+    "test": "mocha dist/test/test/*.js"
   },
   "main": "dist/src/index.js",
   "typings": "dist/src/index.d.ts",
