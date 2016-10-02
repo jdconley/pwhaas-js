@@ -6,8 +6,15 @@ describe("smoke test", () => {
     const plain = "😘 this is my really long 😀😂😂 passphrase that nobody will ever guess 🤓";
 
     it("can verify a hash", async (): Promise<any> => {
-        const hash1 = await pwhaas.hash(plain);
-        const verified = await pwhaas.verify(hash1, plain);
-        chai.assert.isTrue(verified);
+        // Salt is used to hash the password locally before it goes to the service
+        const salt = await pwhaas.generateSalt(32);
+
+        const hashResponse = await pwhaas.hash(plain, salt);
+        chai.assert.isNotNull(hashResponse.hash);
+        chai.assert.isString(hashResponse.hash);
+        chai.assert.notEqual(hashResponse.hash, plain);
+
+        const verifyResponse = await pwhaas.verify(hashResponse.hash, plain, salt);
+        chai.assert.isTrue(verifyResponse.match);
     });
 });

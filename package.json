@@ -7,9 +7,9 @@
     "url": "git+https://github.com/jdconley/pwhaas-js.git"
   },
   "scripts": {
-    "prepublish": "tslint --project tslint.json && tsc -p .",
-    "pretest": "tslint --project tslint.json && tsc -p . && tsc -p test/tsconfig.json",
-    "test": "mocha dist/test/test/*.js"
+    "prepublish": "rm -rf dist && tslint --project tslint.json && tsc -d && tsc -p .",
+    "pretest": "tslint --project tslint.json && tsc -p .",
+    "test": "mocha dist/test/*.js"
   },
   "main": "dist/src/index.js",
   "typings": "dist/src/index.d.ts",
@@ -24,13 +24,19 @@
   "author": "JD Conley",
   "license": "MIT",
   "dependencies": {
-    "argon2": "^0.14.0"
+    "argon2": "^0.14.0",
+    "bluebird": "^3.4.6",
+    "request": "^2.75.0",
+    "request-promise": "^4.1.1"
   },
   "devDependencies": {
+    "@types/bluebird": "^3.0.33",
     "@types/chai": "^3.4.34",
     "@types/debug": "0.0.29",
     "@types/mocha": "^2.2.32",
     "@types/node": "^6.0.41",
+    "@types/request": "0.0.31",
+    "@types/request-promise": "^3.0.32",
     "chai": "^3.5.0",
     "mocha": "^3.0.2",
     "tslint": "^3.15.1",

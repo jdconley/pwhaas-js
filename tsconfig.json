@@ -3,13 +3,11 @@
         "target": "es6",
         "module": "commonjs",
         "sourceMap": true,
-        "rootDir": "src",
-        "outDir": "dist/src"
+        "rootDir": ".",
+        "outDir": "dist"
     },
     "exclude": [
         "node_modules",
-        "typings",
-        "test",
         "dist"
     ],
     "types": [

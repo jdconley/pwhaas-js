@@ -1,7 +1,8 @@
+.vscode
 src
 test
 typings
-dist/*.map
+dist/**/*.map
 dist/test
 tsconfig.json
 tslint.json
