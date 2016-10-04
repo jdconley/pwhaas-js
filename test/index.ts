@@ -9,12 +9,12 @@ describe("smoke test", () => {
         // Salt is used to hash the password locally before it goes to the service
         const salt = await pwhaas.generateSalt(32);
 
-        const hashResponse = await pwhaas.hash(plain, salt);
+        const hashResponse = await pwhaas.hash(plain);
         chai.assert.isNotNull(hashResponse.hash);
         chai.assert.isString(hashResponse.hash);
         chai.assert.notEqual(hashResponse.hash, plain);
 
-        const verifyResponse = await pwhaas.verify(hashResponse.hash, plain, salt);
+        const verifyResponse = await pwhaas.verify(hashResponse.hash, plain);
         chai.assert.isTrue(verifyResponse.match);
     });
 });
