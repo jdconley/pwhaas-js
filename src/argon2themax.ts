@@ -14,81 +14,170 @@ export interface TimingResult {
 }
 
 export interface TimingOptions {
-    maxTimeMs: number;
-    argon2d: boolean;
-    saltLength: number;
-    plain: string;
-    statusCallback: (timing: Timing) => boolean;
+    maxTimeMs?: number;
+    argon2d?: boolean;
+    saltLength?: number;
+    plain?: string;
+    statusCallback?: (timing: Timing) => boolean;
 }
 
-export interface Strategy {
+export interface TimingStrategy {
     run(options: TimingOptions): Promise<TimingResult>;
 }
 
-class MaxMemoryMarchStrategy implements Strategy {
+export interface TimingContext {
+    strategy: TimingStrategy;
+    timingOptions: TimingOptions;
+    startingOptions: argon2.Options;
+    data: any;
+}
+
+export abstract class TimingStrategyBase implements TimingStrategy {
     async run(options: TimingOptions): Promise<TimingResult> {
-        // Use CPU count * 2 or the argon2 min limits for parallelism
-        // March up toward the free system memory or argon2 memory limits
-        // Stop when we hit maxTimeMs
-        // If we don't hit maxTimeMs, start again at the next timeCost
-        // Repeat
-
-        const parallelism = Math.max(
-            Math.min(os.cpus().length * 2, argon2.limits.parallelism.max),
-            argon2.limits.parallelism.min);
-
-        const memoryCostMax = Math.min(
-            Math.floor(Math.log2(os.freemem() / 1024)),
-            argon2.limits.memoryCost.max);
-
         const opts = _.clone(argon2.defaults);
         opts.argon2d = options.argon2d;
-        opts.parallelism = parallelism;
 
-        const salt = await argon2.generateSalt(options.saltLength);
+        const context: TimingContext = {
+            data: {},
+            startingOptions: opts,
+            strategy: this,
+            timingOptions: options
+        };
+
+        this.onBeforeStart(context);
+
+        const salt = await this.generateSalt(context);
 
         const result: TimingResult = {
             timings: []
         };
 
-        let lastRunTime: number = 0;
+        let lastTiming: Timing;
 
         do {
             const startHrtime = process.hrtime();
             await argon2.hash(options.plain, salt, opts);
             const elapsedHrtime = process.hrtime(startHrtime);
 
-            const timing: Timing = {
-                computeTimeMs: lastRunTime = Argon2TheMax.hrtimeToMs(elapsedHrtime),
+            lastTiming = {
+                computeTimeMs: Argon2TheMax.hrtimeToMs(elapsedHrtime),
                 options: _.clone(opts)
             };
 
-            result.timings.push(timing);
+            result.timings.push(lastTiming);
 
             // Allow the callback to cancel the process if it feels the urge
-            if (options.statusCallback && !options.statusCallback(timing)) {
+            if (options.statusCallback && !options.statusCallback(lastTiming)) {
                 break;
             }
 
-            // Prefer adding more memory, then add more time
-            if (opts.memoryCost < memoryCostMax) {
-                opts.memoryCost++;
-            } else if (opts.timeCost < argon2.limits.timeCost.max) {
-                opts.memoryCost = argon2.defaults.memoryCost;
-                opts.timeCost++;
-            } else {
-                // Hit both the memory and time limits -- Is this a supercomputer?
+            // Allow the implementation to stop the test run when updating options
+            if (!this.applyNextOptions(context, opts)) {
                 break;
             }
-        } while (lastRunTime < options.maxTimeMs);
+
+        } while (!this.isDone(context, lastTiming));
 
         return result;
     }
 
+    abstract onBeforeStart(context: TimingContext): void;
+    abstract applyNextOptions(context: TimingContext, options: argon2.Options): boolean;
+
+    isDone(context: TimingContext, lastTiming: Timing): boolean {
+        return lastTiming.computeTimeMs >= context.timingOptions.maxTimeMs;
+    }
+
+    generateSalt(context: TimingContext): Promise<Buffer> {
+        return argon2.generateSalt(context.timingOptions.saltLength);
+    }
+}
+
+class MaxMemoryMarchStrategy extends TimingStrategyBase {
+    onBeforeStart(context: TimingContext): void {
+        context.startingOptions.parallelism =
+            context.data.parallelism = Math.max(
+                Math.min(os.cpus().length * 2, argon2.limits.parallelism.max),
+                argon2.limits.parallelism.min);
+
+        context.data.memoryCostMax = Math.min(
+            Math.floor(Math.log2(os.freemem() / 1024)),
+            argon2.limits.memoryCost.max);
+    }
+
+    applyNextOptions(context: TimingContext, options: argon2.Options): boolean {
+        // Prefer adding more memory, then add more time
+        if (options.memoryCost < context.data.memoryCostMax) {
+            options.memoryCost++;
+        } else if (options.timeCost < argon2.limits.timeCost.max) {
+            options.memoryCost = argon2.defaults.memoryCost;
+            options.timeCost++;
+        } else {
+            // Hit both the memory and time limits -- Is this a supercomputer?
+            return false;
+        }
+
+        return true;
+    }
+}
+
+export interface SelectionStrategy {
+    initialize(timingResults: TimingResult): void;
+    select(maxTimeMs: number): Timing;
+    fastest(): Timing;
+    slowest(): Timing;
+}
+
+export class MaxMemorySelectionStrategy implements SelectionStrategy {
+    private sortedTimings: Timing[];
+    private timingsCache: { [ms: number]: Timing; } = { };
+    private fastestTiming: Timing;
+    private slowestTiming: Timing;
+
+    initialize(timingResults: TimingResult): void {
+        if (!timingResults || !timingResults.timings ||
+            !timingResults.timings.length) {
+                throw new Error("Argument error. No timings found.");
+            }
+
+        // Sort timings by memory and then elapsed ms
+        // So the most memory expensive things will be first for selection
+        this.sortedTimings = _.orderBy(timingResults.timings,
+            ["options.memoryCost", "computeTimeMs"],
+            ["desc", "desc"]);
+
+        const computeTimeList = _.sortBy(timingResults.timings, "computeTimeMs");
+        this.fastestTiming = _.head(computeTimeList);
+        this.slowestTiming = _.last(computeTimeList);
+    }
+
+    select(maxTimeMs: number): Timing {
+        const timing = this.timingsCache[maxTimeMs] ||
+            _.find(this.sortedTimings, timing => {
+                return timing.computeTimeMs <= maxTimeMs;
+            });
+
+        // No options available...
+        if (!timing) {
+            throw new Error(`No timings found with less than ${maxTimeMs}ms compute time.`);
+        }
+
+        this.timingsCache[maxTimeMs] = timing;
+
+        return timing;
+    }
+
+    fastest(): Timing {
+        return this.fastestTiming;
+    }
+
+    slowest(): Timing {
+        return this.slowestTiming;
+    }
 }
 
 export class Argon2TheMax {
-    public static defaultStrategy: Strategy = new MaxMemoryMarchStrategy();
+    public static defaultTimingStrategy: TimingStrategy = new MaxMemoryMarchStrategy();
     public static defaultTimingOptions: TimingOptions = {
         argon2d: false,
         maxTimeMs: 1000,
@@ -104,16 +193,22 @@ export class Argon2TheMax {
     private static logStatus(timing: Timing): boolean {
         console.log(`Took ${timing.computeTimeMs}ms.
             Parallelism: ${timing.options.parallelism}.
-            MemoryCost: ${timing.options.memoryCost}.
+            MemoryCost: ${timing.options.memoryCost} (${Math.pow(2, timing.options.memoryCost) / 1024}MB).
             TimeCost: ${timing.options.timeCost}.`);
 
         return true;
     }
 
-    static run(options?: TimingOptions, strategy?: Strategy): Promise<TimingResult> {
-        strategy = strategy || Argon2TheMax.defaultStrategy;
-        options = options || Argon2TheMax.defaultTimingOptions;
+    static getSelectionStrategy(timingResults: TimingResult): SelectionStrategy {
+        const strategy = new MaxMemorySelectionStrategy();
+        strategy.initialize(timingResults);
+        return strategy;
+    }
 
-        return strategy.run(options);
+    static generateTimings(options?: TimingOptions, timingStrategy?: TimingStrategy): Promise<TimingResult> {
+        timingStrategy = timingStrategy || Argon2TheMax.defaultTimingStrategy;
+        options = _.extend({}, Argon2TheMax.defaultTimingOptions, options);
+
+        return timingStrategy.run(options);
     }
 }
