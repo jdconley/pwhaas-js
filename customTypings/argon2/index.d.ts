@@ -1,25 +1,30 @@
-export interface IOptions {
-    hashLength:number;
-    timeCost:number;
-    memoryCost:number;
-    parallelism:number;
-    argon2d:boolean;
+// Type definitions for argon2 v0.14.0
+// Definitions by: JD Conley <https://github.com/jdconley/>
+
+/// <reference types="node" />
+
+export interface Options {
+    hashLength?: number;
+    timeCost?: number; 
+    memoryCost?: number; 
+    parallelism?: number; 
+    argon2d?: boolean; 
 }
 
-export interface INumericLimit {
-    max:number;
-    min:number;
+export interface NumericLimit {
+    max: number;
+    min: number;
 }
 
-export interface IOptionLimits {
-    hashLength:INumericLimit;
-    memoryCost:INumericLimit;
-    timeCost:INumericLimit;
-    parallelism:INumericLimit;
+export interface OptionLimits {
+    hashLength: NumericLimit;
+    memoryCost: NumericLimit;
+    timeCost: NumericLimit;
+    parallelism: NumericLimit;
 }
 
-export const defaults:IOptions;
-export const limits:IOptionLimits;
-export function hash(plain:string, salt:Buffer|string, options?:IOptions):Promise<string>;
-export function generateSalt(length:number):Promise<Buffer>;
-export function verify(hash:string, plain:string):Promise<boolean>;
+export const defaults: Options;
+export const limits: OptionLimits;
+export function hash(plain: Buffer | string, salt: Buffer, options?: Options): Promise<string>;
+export function generateSalt(length?: number): Promise<Buffer>;
+export function verify(hash: string, plain: Buffer | string): Promise<boolean>;

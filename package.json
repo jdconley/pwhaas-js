@@ -1,5 +1,5 @@
 {
-  "name": "pwhaas-js",
+  "name": "pwhaas",
   "version": "1.0.0",
   "description": "Client library for pwhaas, a password hashing service",
   "repository": {
@@ -26,6 +26,7 @@
   "dependencies": {
     "argon2": "^0.14.0",
     "bluebird": "^3.4.6",
+    "lodash": "^4.16.4",
     "request": "^2.75.0",
     "request-promise": "^4.1.1"
   },
@@ -33,6 +34,7 @@
     "@types/bluebird": "^3.0.33",
     "@types/chai": "^3.4.34",
     "@types/debug": "0.0.29",
+    "@types/lodash": "^4.14.37",
     "@types/mocha": "^2.2.32",
     "@types/node": "^6.0.41",
     "@types/request": "0.0.31",
