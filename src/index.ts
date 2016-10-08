@@ -78,14 +78,16 @@ class PwhaasClient {
     }
 
     private async postJson(relativeUri: string, body: any): Promise<any> {
-        const options = {
+        const options: rp.RequestPromiseOptions = {
             method: "POST",
             body,
-            json: true
+            json: true,
+            timeout: 1000 //TODO: config, or based on hash max
         };
 
         const uri = `${this.serviceRootUri}/${relativeUri}`;
-        return await rp(uri, options);
+        let result = await rp(uri, options);
+        return result;
     }
 }
 
