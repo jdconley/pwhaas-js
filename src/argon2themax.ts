@@ -128,11 +128,13 @@ export interface SelectionStrategy {
     slowest(): Timing;
 }
 
-export class MaxMemorySelectionStrategy implements SelectionStrategy {
+export abstract class LinearSelectionStrategy implements SelectionStrategy {
     private sortedTimings: Timing[];
     private timingsCache: { [ms: number]: Timing; } = { };
     private fastestTiming: Timing;
     private slowestTiming: Timing;
+
+    abstract getSortedTimings(timings: Timing[]): Timing[];
 
     initialize(timingResults: TimingResult): void {
         if (!timingResults || !timingResults.timings ||
@@ -142,9 +144,7 @@ export class MaxMemorySelectionStrategy implements SelectionStrategy {
 
         // Sort timings by memory and then elapsed ms
         // So the most memory expensive things will be first for selection
-        this.sortedTimings = _.orderBy(timingResults.timings,
-            ["options.memoryCost", "computeTimeMs"],
-            ["desc", "desc"]);
+        this.sortedTimings = this.getSortedTimings(timingResults.timings);
 
         const computeTimeList = _.sortBy(timingResults.timings, "computeTimeMs");
         this.fastestTiming = _.head(computeTimeList);
@@ -176,6 +176,25 @@ export class MaxMemorySelectionStrategy implements SelectionStrategy {
     }
 }
 
+export class MaxMemorySelectionStrategy extends LinearSelectionStrategy {
+    getSortedTimings(timings: Timing[]): Timing[] {
+        return _.orderBy(timings,
+            ["options.memoryCost", "computeTimeMs"],
+            ["desc", "desc"]);
+    }
+}
+
+export class ClosestMatchSelectionStrategy extends LinearSelectionStrategy {
+    getSortedTimings(timings: Timing[]): Timing[] {
+        return _.sortBy(timings, "computeTimeMs");
+    }
+}
+
+export enum SelectionStrategyType {
+    MaxMemory,
+    ClosestMatch
+}
+
 export class Argon2TheMax {
     public static defaultTimingStrategy: TimingStrategy = new MaxMemoryMarchStrategy();
     public static defaultTimingOptions: TimingOptions = {
@@ -199,10 +218,15 @@ export class Argon2TheMax {
         return true;
     }
 
-    static getSelectionStrategy(timingResults: TimingResult): SelectionStrategy {
-        const strategy = new MaxMemorySelectionStrategy();
-        strategy.initialize(timingResults);
-        return strategy;
+    static getSelectionStrategy(type: SelectionStrategyType): SelectionStrategy {
+        switch (type) {
+            case SelectionStrategyType.ClosestMatch:
+                return new ClosestMatchSelectionStrategy();
+            case SelectionStrategyType.MaxMemory:
+                return new MaxMemorySelectionStrategy();
+            default:
+                throw new Error("Unknown type.");
+        }
     }
 
     static generateTimings(options?: TimingOptions, timingStrategy?: TimingStrategy): Promise<TimingResult> {
@@ -210,5 +234,18 @@ export class Argon2TheMax {
         options = _.extend({}, Argon2TheMax.defaultTimingOptions, options);
 
         return timingStrategy.run(options);
+    }
+
+    static async getMaxOptions(
+            maxMs: number,
+            selectionStrategy: SelectionStrategyType = SelectionStrategyType.ClosestMatch
+        ): Promise<argon2.Options> {
+
+        const timings = await Argon2TheMax.generateTimings({ maxTimeMs: maxMs });
+        const strategy: SelectionStrategy = Argon2TheMax.getSelectionStrategy(selectionStrategy);
+        strategy.initialize(timings);
+
+        const selectedTiming = strategy.select(maxMs);
+        return selectedTiming.options;
     }
 }

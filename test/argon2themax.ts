@@ -1,6 +1,6 @@
 import * as mocha from "mocha";
 import * as chai from "chai";
-import { Argon2TheMax } from "../src/argon2themax";
+import { Argon2TheMax, SelectionStrategyType } from "../src/argon2themax";
 import * as argon2 from "argon2";
 
 describe("Argon2TheMax", () => {
@@ -11,7 +11,13 @@ describe("Argon2TheMax", () => {
         console.log(`Found ${result.timings.length} timings.`);
 
         // The results of this is pretty tough to validate as it will vary
-        const selector = Argon2TheMax.getSelectionStrategy(result);
+        const selector = Argon2TheMax.getSelectionStrategy(SelectionStrategyType.ClosestMatch);
+        selector.initialize(result);
+
+        const selector2 = Argon2TheMax.getSelectionStrategy(SelectionStrategyType.MaxMemory);
+        selector2.initialize(result);
+
+        chai.assert.isNotNull(selector.select(11000));
         chai.assert.isNotNull(selector.select(1100));
         chai.assert.isNotNull(selector.select(500));
         chai.assert.isNotNull(selector.select(250));
@@ -33,4 +39,14 @@ describe("Argon2TheMax", () => {
 
         chai.assert.notEqual(fastestHash, slowestHash, "Hash results should be different");
     });
+
+    /*it("has a simple interface", async function (): Promise<any> {
+        this.timeout(0);
+
+        const options = await Argon2TheMax.getMaxOptions(100);
+        chai.assert.isNotNull(options);
+        const salt = await argon2.generateSalt(32);
+
+        chai.assert.isNotNull(await argon2.hash("password", salt, options));
+    });*/
 });
