@@ -5,7 +5,9 @@ import {pwhaas} from "../src/index";
 describe("smoke test", () => {
     const plain = "😘 this is my really long 😀😂😂 passphrase that nobody will ever guess 🤓";
 
-    it("can verify a hash", async (): Promise<any> => {
+    it("can verify a hash", async function(): Promise<any> {
+        this.timeout(0);
+
         // Salt is used to hash the password locally before it goes to the service
         const salt = await pwhaas.generateSalt(32);
 
