@@ -71,7 +71,7 @@ class VerifyRequest {
     constructor(public hash: string, public plain: string) {}
 }
 
-class PwhaasClient {
+export class PwhaasClient {
     options: ClientOptions;
 
     constructor(options: ClientOptions = defaultClientOptions) {
