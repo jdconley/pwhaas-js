@@ -1,11 +1,25 @@
 "use strict";
 
-import * as argon2 from "argon2";
+import * as argon2 from "argon2themax";
 import * as rp from "request-promise";
+import * as _ from "lodash";
 
 export const defaultSaltLength: number = 32;
 export const defaultMaxHashTimeMs: number = 500;
-export var defaultClientOptions: any = {};
+
+export interface ClientOptions {
+    serviceRootUri?: string;
+    request?: rp.RequestPromiseOptions;
+}
+
+export const defaultClientOptions: ClientOptions = {
+    serviceRootUri: "https://api.pwhaas.com",
+    request: {
+        method: "POST",
+        json: true,
+        timeout: 1000
+    }
+};
 
 // These are the same defaults as argon2 lib.
 // But we set them here for consistency across versions.
@@ -18,6 +32,7 @@ let hashOptions: argon2.Options = {
 };
 
 export interface PwhaasService {
+    init(): Promise<any>;
     hash(plain: string, maxtime?: number): Promise<HashResponse>;
     verify(hash: string, plain: string): Promise<VerifyResponse>;
     generateSalt(length: number): Promise<Buffer>;
@@ -56,9 +71,10 @@ class VerifyRequest {
 }
 
 class PwhaasClient {
-    serviceRootUri = "https://api.pwhaas.com";
+    options: ClientOptions;
 
-    constructor(public options: any) {
+    constructor(options: ClientOptions = defaultClientOptions) {
+        this.options = _.assignIn({}, defaultClientOptions, options);
     }
 
     async hash(plain: string, maxtime?: number): Promise<HashResponse> {
@@ -73,25 +89,23 @@ class PwhaasClient {
         return await this.postJson("verify", req);
     }
 
-    async generateSalt(length: number): Promise<Buffer> {
-        return argon2.generateSalt(length);
-    }
-
     private async postJson(relativeUri: string, body: any): Promise<any> {
-        const options: rp.RequestPromiseOptions = {
-            method: "POST",
-            body,
-            json: true,
-            timeout: 1000 //TODO: config, or based on hash max
-        };
+        const requestOptions = _.cloneDeep(this.options.request);
+        requestOptions.body = body;
 
-        const uri = `${this.serviceRootUri}/${relativeUri}`;
-        let result = await rp(uri, options);
+        const uri = `${this.options.serviceRootUri}/${relativeUri}`;
+        let result = await rp(uri, requestOptions);
         return result;
     }
 }
 
 class LocalHash {
+    private static supportedHashVersions = {
+        "0": true
+    };
+
+    static hashVersion = "0";
+
     constructor(public remoteHash: string, public localSalt: Buffer) {
     }
 
@@ -99,6 +113,10 @@ class LocalHash {
         const parts = encodedHash.split(":", 4);
         if (parts.length !== 4 || parts[0] !== "pwhaas") {
             throw new Error("Unrecognized hash. Was it created with pwhaas?");
+        }
+
+        if (!LocalHash.supportedHashVersions[parts[1]]) {
+            throw new Error("Unsupported hash version. Maybe you need to update pwhaas?");
         }
 
         const localSalt = Buffer.from(parts[2], "base64");
@@ -111,16 +129,21 @@ class LocalHash {
 
         // Tag this so we know it is our hash, including a version field.
         // Colons are a reasonable/simple separator since salt is base64 encoded.
-        // TODO: Persist the local argon2 options to support using non-defaults
-        return `pwhaas:0:${saltStr}:${this.remoteHash}`;
+        // TODO: Include the local argon2 options to support using non-defaults
+        return `pwhaas:${LocalHash.hashVersion}:${saltStr}:${this.remoteHash}`;
     }
 }
 
 class Pwhaas implements PwhaasService {
     client: PwhaasClient;
+    maxLocalOptions: argon2.Options;
 
-    constructor(public clientOptions: any = defaultClientOptions) {
+    constructor(public clientOptions: ClientOptions = defaultClientOptions) {
         this.client = new PwhaasClient(clientOptions);
+    }
+
+    async init(): Promise<any> {
+        this.maxLocalOptions = await argon2.getMaxOptions();
     }
 
     async generateSalt(length: number): Promise<Buffer> {
@@ -136,7 +159,11 @@ class Pwhaas implements PwhaasService {
         try {
             hashResult = await this.client.hash(secretPlain, maxtime);
         } catch (error) {
-            const hash = await argon2.hash(secretPlain, await this.generateSalt(defaultSaltLength), hashOptions);
+            if (!this.maxLocalOptions) {
+                await this.init();
+            }
+
+            const hash = await argon2.hash(secretPlain, await this.generateSalt(defaultSaltLength), this.maxLocalOptions);
             hashResult = { local: true, error, options: argon2.defaults, hash: hash, timing: { salt: 0, hash: 0} };
         }
 

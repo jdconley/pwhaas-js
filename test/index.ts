@@ -8,6 +8,8 @@ describe("smoke test", () => {
     it("can verify a hash", async function(): Promise<any> {
         this.timeout(0);
 
+        await pwhaas.init();
+
         // Salt is used to hash the password locally before it goes to the service
         const salt = await pwhaas.generateSalt(32);
 
