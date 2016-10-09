@@ -4,6 +4,9 @@
 # Transpiled code
 dist
 
+# Package files
+*.tgz
+
 # Types that are retrieved from typings
 typings
 
