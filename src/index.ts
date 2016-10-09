@@ -162,9 +162,17 @@ class Pwhaas implements PwhaasService {
             if (!this.maxLocalOptions) {
                 await this.init();
             }
+            const salt = await this.generateSalt(defaultSaltLength);
 
-            const hash = await argon2.hash(secretPlain, await this.generateSalt(defaultSaltLength), this.maxLocalOptions);
-            hashResult = { local: true, error, options: argon2.defaults, hash: hash, timing: { salt: 0, hash: 0} };
+            const hash = await argon2.hash(
+                secretPlain, salt, this.maxLocalOptions);
+
+            hashResult = {
+                local: true,
+                error,
+                options: this.maxLocalOptions,
+                hash,
+                timing: { salt: 0, hash: 0} };
         }
 
         // Replace the remote hash with our encoded hash.
