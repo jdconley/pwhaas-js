@@ -21,11 +21,21 @@
     "scrypt",
     "argon2"
   ],
-  "author": "JD Conley",
+  "author": {
+    "name": "JD Conley",
+    "email": "jd.conley@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/jdconley/pwhaas-js/issues"
+  },
+  "engines": {
+    "node" : "^4.0.0"
+  },
+  "files":[
+    "dist/src"
+  ],
   "license": "MIT",
   "dependencies": {
-    "argon2": "^0.14.0",
-    "bluebird": "^3.4.6",
     "lodash": "^4.16.4",
     "request": "^2.75.0",
     "request-promise": "^4.1.1"
