@@ -1,7 +1,6 @@
 .vscode
 src
 test
-typings
 dist/**/*.map
 dist/test
 tsconfig.json
