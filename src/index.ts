@@ -4,15 +4,16 @@ import * as argon2 from "argon2themax";
 import * as rp from "request-promise";
 import * as _ from "lodash";
 
-export const defaultSaltLength: number = 32;
-export const defaultMaxHashTimeMs: number = 500;
-
 export interface ClientOptions {
+    apiKey: string;
     serviceRootUri?: string;
+    maxtime?: number;
     request?: rp.RequestPromiseOptions;
 }
 
 export const defaultClientOptions: ClientOptions = {
+    apiKey: "[Your API Key Here]",
+    maxtime: 250,
     serviceRootUri: "https://api.pwhaas.com",
     request: {
         method: "POST",
@@ -32,10 +33,10 @@ let hashOptions: argon2.Options = {
 };
 
 export interface PwhaasService {
-    init(): Promise<any>;
-    hash(plain: string, maxtime?: number): Promise<HashResponse>;
-    verify(hash: string, plain: string): Promise<VerifyResponse>;
-    generateSalt(length: number): Promise<Buffer>;
+    init(): Promise<argon2.Options>;
+    hash(plain: string | Buffer, maxtime?: number): Promise<HashResponse>;
+    verify(hash: string, plain: string | Buffer): Promise<VerifyResponse>;
+    generateSalt(length?: number): Promise<Buffer>;
 }
 
 export interface HashTiming {
@@ -77,8 +78,8 @@ class PwhaasClient {
         this.options = _.assignIn({}, defaultClientOptions, options);
     }
 
-    async hash(plain: string, maxtime?: number): Promise<HashResponse> {
-        const req = new HashRequest(plain, maxtime || defaultMaxHashTimeMs);
+    async hash(plain: string, maxtime: number = this.options.maxtime): Promise<HashResponse> {
+        const req = new HashRequest(plain, maxtime);
 
         return await this.postJson("hash", req);
     }
@@ -92,6 +93,10 @@ class PwhaasClient {
     private async postJson(relativeUri: string, body: any): Promise<any> {
         const requestOptions = _.cloneDeep(this.options.request);
         requestOptions.body = body;
+        requestOptions.auth = {
+            user: this.options.apiKey,
+            sendImmediately: true
+        };
 
         const uri = `${this.options.serviceRootUri}/${relativeUri}`;
         let result = await rp(uri, requestOptions);
@@ -134,7 +139,7 @@ class LocalHash {
     }
 }
 
-class Pwhaas implements PwhaasService {
+export class Pwhaas implements PwhaasService {
     client: PwhaasClient;
     maxLocalOptions: argon2.Options;
 
@@ -142,16 +147,17 @@ class Pwhaas implements PwhaasService {
         this.client = new PwhaasClient(clientOptions);
     }
 
-    async init(): Promise<any> {
+    async init(): Promise<argon2.Options> {
         this.maxLocalOptions = await argon2.getMaxOptions();
+        return this.maxLocalOptions;
     }
 
-    async generateSalt(length: number): Promise<Buffer> {
+    async generateSalt(length?: number): Promise<Buffer> {
         return await argon2.generateSalt(length);
     }
 
-    async hash(plain: string, maxtime?: number): Promise<HashResponse> {
-        const salt = await this.generateSalt(defaultSaltLength);
+    async hash(plain: string, maxtime: number = this.clientOptions.maxtime): Promise<HashResponse> {
+        const salt = await this.generateSalt();
         const secretPlain = await argon2.hash(plain, salt, hashOptions);
 
         let hashResult: HashResponse;
@@ -162,7 +168,7 @@ class Pwhaas implements PwhaasService {
             if (!this.maxLocalOptions) {
                 await this.init();
             }
-            const salt = await this.generateSalt(defaultSaltLength);
+            const salt = await this.generateSalt();
 
             const hash = await argon2.hash(
                 secretPlain, salt, this.maxLocalOptions);
