@@ -18,7 +18,7 @@ export const defaultClientOptions: ClientOptions = {
     request: {
         method: "POST",
         json: true,
-        timeout: 1000
+        timeout: 5000
     }
 };
 
