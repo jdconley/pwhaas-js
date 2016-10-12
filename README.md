@@ -15,7 +15,7 @@ to 4GB of RAM in order to make the resulting hashes difficult to crack
 with GPUs or ASIC processors.
 
 By default this module will connect to pwhaas.com and hash with the default
-argon2 options. For higher security hashes utilizing up to 32 CPU cores in
+argon2 options. For higher security hashes utilizing 10's of CPU cores in
 parallel, you'll have to sign up for an account.
 
 This module makes it easy to use the pwhaas service with the same interface
