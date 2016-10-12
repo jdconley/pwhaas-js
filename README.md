@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jdconley/pwhaas-js.svg?branch=master)](https://travis-ci.org/jdconley/pwhaas-js)
+
 # pwhaas
 A Node.JS client module for [pwhaas](https://github.com/jdconley/pwhaas). You
 can host the pwhaas service yourself or use it at [pwhaas.com](https://www.pwhaas.com).
