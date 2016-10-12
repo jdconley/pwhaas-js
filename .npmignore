@@ -1,3 +1,4 @@
+.babelrc
 .travis.yml
 .vscode
 src
