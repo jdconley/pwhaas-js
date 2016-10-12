@@ -41,8 +41,51 @@ npm install --save pwhaas
 ```
 
 ## Usage
+If you are either hosting your own [Pwhaas](https://github.com/jdconley/pwhaas) compatible
+instance or have a paid account on [pwhaas.com](https://www.pwhaas.com) you'll want to set
+some options. You can do this with either enviroment variables or via a call to `setOptions`
+on the `Pwhaas` instance.
 
-```ts
+### Set options with environment variables
+You can set the options via environment variables. Remember to keep your API Key private
+and don't commit it to any public repos.
+
+```sh
+
+# Your API Key... The default will let you hash in a free trial mode, with less secure hashes.
+export PWHAAS_API_KEY='[Your API Key Here]'
+
+# The amount of time (ms) you want the service to spend hashing per password
+export PWHAAS_MAX_TIME=250
+
+# The URI to the API server. You shouldn't need to set this unless you are self hosting.
+export PWHAAS_ROOT_URI='https://api.pwhaas.com'
+
+# The amount of time to give the API (ms) before falling back to a local hash
+export PWHAAS_API_TIMEOUT=5000
+
+```
+
+### Set options via code
+If you want to, you can also set the options via a Javascript object. Remember to keep your
+API Key private and don't commit it to any public repos. Yes, I repeated myself :).
+
+```js
+
+pwhaas.setOptions({
+    apiKey: "[Your API Key Here]",
+    maxtime: 250,
+    serviceRootUri: "https://api.pwhaas.com",
+    request: {
+        timeout: 5000
+    }
+});
+
+```
+
+### Use the service
+
+```js
 // TypeScript / ES7
 import { pwhaas } from "pwhaas";
 const plain = "password";
@@ -67,6 +110,7 @@ console.log(verifyResopnse.match);
 ```
 
 ```js
+
 // JavaScript / ES5 / Promises instead of "await"
 var pwhaas = require("pwhaas").pwhaas;
 
@@ -124,7 +168,7 @@ you to utilize up to 1,000ms of compute time.
 You must have a paid account on pwhaas or host your own in order for the `maxtime`
 option to be used.
 
-```ts
+```js
 
 // This would be a very secure hash...
 const hashResponse = await pwhaas.hash("password", 1000);
@@ -136,7 +180,7 @@ If you want multiple instances of pwhaas with different configurations you can d
 as well. You can just instantiate the Pwhaas class and use it as shown in the examples
 above that utilize the singleton.
 
-```ts
+```js
 
 import { Pwhaas } from "pwhaas";
 

@@ -5,21 +5,26 @@ import * as rp from "request-promise";
 import * as _ from "lodash";
 
 export interface ClientOptions {
-    apiKey: string;
+    apiKey?: string;
     serviceRootUri?: string;
     maxtime?: number;
     request?: rp.RequestPromiseOptions;
 }
 
-export const defaultClientOptions: ClientOptions = {
-    apiKey: "[Your API Key Here]",
-    maxtime: 250,
-    serviceRootUri: "https://api.pwhaas.com",
-    request: {
-        method: "POST",
-        json: true,
-        timeout: 5000
-    }
+const pwhaasDefaultApiKey = "[Your API Key Here]";
+const pwhaasDefaultApiRootUri = "https://api.pwhaas.com";
+
+export const defaultClientOptions: () => ClientOptions = () => {
+    return {
+        apiKey: process.env.PWHAAS_API_KEY || pwhaasDefaultApiKey,
+        maxtime: process.env.PWHAAS_MAX_TIME || 250,
+        serviceRootUri: process.env.PWHAAS_ROOT_URI || pwhaasDefaultApiRootUri,
+        request: {
+            method: "POST",
+            json: true,
+            timeout: process.env.PWHAAS_API_TIMEOUT || 5000
+        }
+    };
 };
 
 // These are the same defaults as argon2 lib.
@@ -37,6 +42,8 @@ export interface PwhaasService {
     hash(plain: string | Buffer, maxtime?: number): Promise<HashResponse>;
     verify(hash: string, plain: string | Buffer): Promise<VerifyResponse>;
     generateSalt(length?: number): Promise<Buffer>;
+    setOptions(options: ClientOptions);
+    readonly options: ClientOptions;
 }
 
 export interface HashTiming {
@@ -74,8 +81,12 @@ class VerifyRequest {
 export class PwhaasClient {
     options: ClientOptions;
 
-    constructor(options: ClientOptions = defaultClientOptions) {
-        this.options = _.assignIn({}, defaultClientOptions, options);
+    constructor(options: ClientOptions = defaultClientOptions()) {
+        this.setOptions(options);
+    }
+
+    setOptions(options: ClientOptions) {
+        this.options = _.assignIn({}, defaultClientOptions(), options);
     }
 
     async hash(plain: string, maxtime: number = this.options.maxtime): Promise<HashResponse> {
@@ -142,9 +153,18 @@ class LocalHash {
 export class Pwhaas implements PwhaasService {
     client: PwhaasClient;
     maxLocalOptions: argon2.Options;
+    logOutput: (output: any) => void = console.log;
 
-    constructor(public clientOptions: ClientOptions = defaultClientOptions) {
+    constructor(clientOptions: ClientOptions = defaultClientOptions()) {
         this.client = new PwhaasClient(clientOptions);
+    }
+
+    get options(): ClientOptions {
+        return this.client.options;
+    }
+
+    setOptions(options: ClientOptions) {
+        this.client.setOptions(options);
     }
 
     async init(): Promise<argon2.Options> {
@@ -156,8 +176,21 @@ export class Pwhaas implements PwhaasService {
         return await argon2.generateSalt(length);
     }
 
-    async hash(plain: string, maxtime: number = this.clientOptions.maxtime): Promise<HashResponse> {
+    private static hrTimeToMs(hrTime: [number, number]): number {
+        return hrTime[0] * 1e3 + hrTime[1] / 1e6;
+    }
+
+    async hash(plain: string, maxtime: number = this.options.maxtime): Promise<HashResponse> {
+        // A little marketing... More security for little cost is better, right?
+        if (this.options.apiKey === pwhaasDefaultApiKey &&
+            this.options.serviceRootUri === pwhaasDefaultApiRootUri) {
+                this.logOutput(`pwhaas: Using free trial account. Sign up at pwhaas.com for a more secure hash. Plans starting at only $10/mo.`);
+        }
+
+        const startHrTime = process.hrtime();
+
         const salt = await this.generateSalt();
+        const saltElapsedHr = process.hrtime(startHrTime);
         const secretPlain = await argon2.hash(plain, salt, hashOptions);
 
         let hashResult: HashResponse;
@@ -170,15 +203,21 @@ export class Pwhaas implements PwhaasService {
             }
             const salt = await this.generateSalt();
 
+            const hashStartHrTime = process.hrtime();
             const hash = await argon2.hash(
                 secretPlain, salt, this.maxLocalOptions);
+            const hashElapsedHrTime = process.hrtime(hashStartHrTime);
 
             hashResult = {
                 local: true,
                 error,
                 options: this.maxLocalOptions,
                 hash,
-                timing: { salt: 0, hash: 0} };
+                timing: {
+                    salt: Pwhaas.hrTimeToMs(saltElapsedHr),
+                    hash: Pwhaas.hrTimeToMs(hashElapsedHrTime)
+                }
+            };
         }
 
         // Replace the remote hash with our encoded hash.
@@ -188,21 +227,65 @@ export class Pwhaas implements PwhaasService {
         const localhash = new LocalHash(hashResult.hash, salt);
         hashResult.hash = localhash.toString();
 
+        const elapsedHrTime = process.hrtime(startHrTime);
+
+        const overallDesc = hashResult.local
+            ? `pwhaas: API UNAVAILABLE. Operation took ${Pwhaas.hrTimeToMs(elapsedHrTime)}ms.`
+            : `pwhaas: Operation took ${Pwhaas.hrTimeToMs(elapsedHrTime)}ms.`;
+
+        const hashDesc = `Hash: ${hashResult.timing.hash}ms.`;
+        const threadsDesc = `Threads: ${hashResult.options.parallelism}`;
+        const memoryDesc = `Memory: ${Math.pow(2, hashResult.options.memoryCost * 1024)}MB`;
+        const iterationsDesc = `Iterations: ${hashResult.options.timeCost}`;
+
+        this.logOutput(`${overallDesc} ${hashDesc} ${threadsDesc} ${memoryDesc} ${iterationsDesc}`);
+
         return hashResult;
     }
 
     async verify(hash: string, plain: string): Promise<VerifyResponse> {
+        // A little marketing... More security for little cost is better, right?
+        if (this.options.apiKey === pwhaasDefaultApiKey &&
+            this.options.serviceRootUri === pwhaasDefaultApiRootUri) {
+                this.logOutput(`pwhaas: Using free trial account. Sign up at pwhaas.com for a more secure hash. Plans starting at only $10/mo.`);
+        }
+
+        const startHrTime = process.hrtime();
+
         // Use the same salt we used when hashing locally before.
         const localHash = LocalHash.from(hash);
-        const secretPlain = await argon2.hash(plain, localHash.localSalt, defaultClientOptions);
+        const secretPlain = await argon2.hash(plain, localHash.localSalt, defaultClientOptions());
 
         // Try to do the verify remotely. If fail, do it locally (bummer).
+        let verifyResp: VerifyResponse;
         try {
-            return await this.client.verify(localHash.remoteHash, secretPlain);
+            verifyResp = await this.client.verify(localHash.remoteHash, secretPlain);
         } catch (error) {
+            const verifyStart = process.hrtime();
             const localMatch = await argon2.verify(localHash.remoteHash, secretPlain);
-            return { local: true, error, match: localMatch, timing: { verify: 0} };
+            const verifyElapsed = process.hrtime(verifyStart);
+
+            verifyResp = {
+                local: true,
+                error,
+                match: localMatch,
+                timing: {
+                    verify: Pwhaas.hrTimeToMs(verifyElapsed)
+                }
+            };
         }
+
+        const elapsedHrTime = process.hrtime(startHrTime);
+
+        const overallDesc = verifyResp.local
+            ? `pwhaas: API UNAVAILABLE. Operation took ${Pwhaas.hrTimeToMs(elapsedHrTime)}ms.`
+            : `pwhaas: Operation took ${Pwhaas.hrTimeToMs(elapsedHrTime)}ms.`;
+
+        const hashDesc = `Verify: ${verifyResp.timing.verify}ms.`;
+
+        this.logOutput(`${overallDesc} ${hashDesc}`);
+
+        return verifyResp;
     }
 }
 
