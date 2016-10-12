@@ -2,6 +2,8 @@
 src
 test
 dist/**/*.map
+dist/src-babeled
 dist/test
+dist/test-babeled
 tsconfig.json
 tslint.json
