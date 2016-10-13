@@ -110,7 +110,7 @@ describe("smoke test", () => {
         chai.assert.notEqual(target.client.options.serviceRootUri, process.env.PWHAAS_ROOT_URI);
 
         chai.assert.equal(target.options.apiKey, "[Your API Key Here]");
-        chai.assert.equal(target.client.options.maxtime, 250);
+        chai.assert.equal(target.client.options.maxtime, 500);
         chai.assert.equal(target.client.options.request.timeout, 5000);
         chai.assert.equal(target.client.options.serviceRootUri, "https://api.pwhaas.com");
     });
