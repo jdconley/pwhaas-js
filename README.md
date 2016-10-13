@@ -4,19 +4,23 @@
 A Node.JS client module for [pwhaas](https://github.com/jdconley/pwhaas). You
 can host the pwhaas service yourself or use it at [pwhaas.com](https://www.pwhaas.com).
 
-Pwhaas is a microservice (bear with me...) It can hash strings. It offloads
-CPU intensive password hashing from your application servers so they can
-asynchronously wait on IO instead.
+Pwhaas is a service that lets the good guys hash passwords with the same powerful hardware
+used by attackers. This makes the attacker's job 100's of times harder as it increases the
+amount of time they have to spend guessing the passwords.
 
-It hashes passwords with the latest recommended memory-hard algorithm
-optimized for x86 [Argon2](https://github.com/P-H-C/phc-winner-argon2).
-Argon2 is designed to hash in parallel on high CPU count x86 systems utilizing up
-to 4GB of RAM in order to make the resulting hashes difficult to crack
-with GPUs or ASIC processors.
+This service offloads CPU intensive password hashing from your application servers so they
+can do what they are good at and asynchronously wait on IO instead.
 
-By default this module will connect to pwhaas.com and hash with the default
-argon2 options. For higher security hashes utilizing 10's of CPU cores in
-parallel, you'll have to sign up for an account.
+It hashes passwords with the latest recommended salt generating and memory-hard
+algorithm optimized for x86: ([Argon2](https://github.com/P-H-C/phc-winner-argon2)).
+It is designed to hash in parallel on high CPU count systems with up to 4GB of memory
+utilized in order to make the resulting hashes difficult to crack with GPUs or ASIC
+processors.
+
+By default this module will connect to api.pwhaas.com and hash on a VM with 8 CPU cores.
+It will hash for 500ms. For free. For higher security hashes utilizing 10's of CPU cores
+in parallel, and higher performance servers running on metal (no VM) you'll have to sign
+up for an account.
 
 This module makes it easy to use the pwhaas service with the same interface
 you would use to hash passwords locally. 
@@ -26,7 +30,8 @@ Pwhaas is resilient. If the pwhaas service is unavailable this module utilizes
 to find an expensive set of hash options and will compute the hash locally.
 
 Your users' passwords are hashed with argon2 locally before sending them
-to the pwhaas service. This helps protect them from MITM attacks.
+to the pwhaas service. This helps protect them even if there is a MITM attack
+or the pwhaas service itself is hacked.
 
 ## Installation
 pwhaas depends on the [argon2](https://github.com/ranisalt/node-argon2) Node module, which
@@ -43,7 +48,7 @@ npm install --save pwhaas
 ```
 
 ## Usage
-If you are either hosting your own [Pwhaas](https://github.com/jdconley/pwhaas) compatible
+If you are either hosting your own [pwhaas](https://github.com/jdconley/pwhaas) compatible
 instance or have a paid account on [pwhaas.com](https://www.pwhaas.com) you'll want to set
 some options. You can do this with either enviroment variables or via a call to `setOptions`
 on the `Pwhaas` instance.

@@ -17,7 +17,7 @@ const pwhaasDefaultApiRootUri = "https://api.pwhaas.com";
 export const defaultClientOptions: () => ClientOptions = () => {
     return {
         apiKey: process.env.PWHAAS_API_KEY || pwhaasDefaultApiKey,
-        maxtime: process.env.PWHAAS_MAX_TIME || 250,
+        maxtime: process.env.PWHAAS_MAX_TIME || 500,
         serviceRootUri: process.env.PWHAAS_ROOT_URI || pwhaasDefaultApiRootUri,
         request: {
             method: "POST",
