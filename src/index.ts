@@ -42,7 +42,7 @@ export interface PwhaasService {
     hash(plain: string | Buffer, maxtime?: number): Promise<HashResponse>;
     verify(hash: string, plain: string | Buffer): Promise<VerifyResponse>;
     generateSalt(length?: number): Promise<Buffer>;
-    setOptions(options: ClientOptions);
+    setOptions(options: ClientOptions): void;
     readonly options: ClientOptions;
 }
 
@@ -163,7 +163,7 @@ export class Pwhaas implements PwhaasService {
         return this.client.options;
     }
 
-    setOptions(options: ClientOptions) {
+    setOptions(options: ClientOptions): void {
         this.client.setOptions(options);
     }
 

@@ -10,22 +10,22 @@ describe("smoke test", () => {
 
         const hashResponse = await pwhaas.hash(plain);
         console.log(hashResponse);
-        chai.assert.isNotNull(hashResponse.hash);
-        chai.assert.isString(hashResponse.hash);
-        chai.assert.notEqual(hashResponse.hash, plain);
-        chai.assert.isNotTrue(hashResponse.local);
+        chai.assert.isNotNull(hashResponse.hash, "hash is null");
+        chai.assert.isString(hashResponse.hash, "hash is not a string");
+        chai.assert.notEqual(hashResponse.hash, plain, "hash and plain are equal");
+        chai.assert.isNotTrue(hashResponse.local, "hash was done locally");
 
         // Match
         const verifyResponse = await pwhaas.verify(hashResponse.hash, plain);
         console.log(verifyResponse);
-        chai.assert.isTrue(verifyResponse.match);
-        chai.assert.isNotTrue(verifyResponse.local);
+        chai.assert.isTrue(verifyResponse.match, "plain not verified against hash");
+        chai.assert.isNotTrue(verifyResponse.local, "hash was done locally");
 
         // No match
         const failVerifyResponse = await pwhaas.verify(hashResponse.hash, plain + "NOPE!");
         console.log(failVerifyResponse);
-        chai.assert.isNotTrue(failVerifyResponse.match);
-        chai.assert.isNotTrue(failVerifyResponse.local);
+        chai.assert.isNotTrue(failVerifyResponse.match, "plain verified incorrectly against hash");
+        chai.assert.isNotTrue(failVerifyResponse.local, "hash was done locally");
 
     });
 
