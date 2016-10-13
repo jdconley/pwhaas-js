@@ -172,9 +172,6 @@ spend hashing. The service will choose options that will take close to that comp
 time. By default it uses the `maxtime` specified during `init`. The service allows
 you to utilize up to 1,000ms of compute time.
 
-You must have a paid account on pwhaas or host your own in order for the `maxtime`
-option to be used.
-
 ```js
 
 // This would be a very secure hash...
