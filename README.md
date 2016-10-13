@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/jdconley/pwhaas-js.svg?branch=master)](https://travis-ci.org/jdconley/pwhaas-js)
+[![Build Status](https://travis-ci.org/jdconley/pwhaas-js.svg?branch=master)](https://travis-ci.org/jdconley/pwhaas-js) [![npm version](https://badge.fury.io/js/pwhaas.svg)](https://badge.fury.io/js/pwhaas)
 
 # pwhaas
 A Node.JS client module for [pwhaas](https://github.com/jdconley/pwhaas). You
