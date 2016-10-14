@@ -99,8 +99,7 @@ const plain = "password";
 
 // Init the service once before using it.
 // This will find some secure hash options to use for local hashing in case pwhaas is unreachable.
-// Pass your API Key in here.
-await pwhaas.init({ apiKey: "[Your API Key Here]" });
+await pwhaas.init();
 
 // Hashing happens in an asynchronous event using libuv so your system can
 // still process other IO items in the Node.JS queue, such as web requests.
@@ -112,8 +111,8 @@ const hashResponse = await pwhaas.hash(plain);
 console.log(hashResponse.hash);
 
 // Verifying the hash against your user's password is simple.
-const verifyResponse = await pwhaas.verify(plain, hashResponse.hash);
-console.log(verifyResopnse.match);
+const verifyResponse = await pwhaas.verify(hashResponse.hash, plain);
+console.log(verifyResponse.match);
 ```
 
 ```js
@@ -141,14 +140,14 @@ pwhaas.init({ apiKey: "[Your API Key Here]" })
         console.log(hashResponse.hash);
 
         // Verifying the hash against your user's password is simple.
-        return pwhaas.verify(plain, hashResponse.hash);
+        return pwhaas.verify(hashResponse.hash, plain);
 
-    }).then(function(verifyResopnse) {
+    }).then(function(verifyResponse) {
         
         // Does this password match the hash?
-        console.log(match);
+        console.log(verifyResponse.match);
         
-        return match;
+        return verifyResponse.match;
     });
 ```
 
@@ -162,7 +161,7 @@ The defaults global options are:
 {
     "apiKey": "[Your API Key Here]",
     "serviceRootUri": "https://api.pwhaas.com",
-    "maxtime": 250
+    "maxtime": 500
 }
 
 ```
@@ -190,7 +189,7 @@ import { Pwhaas } from "pwhaas";
 
 const pwhaas = new Pwhaas();
 
-await pwhaas.init();
+const maxLocalOptions = await pwhaas.init();
 
 
 ```
@@ -203,7 +202,7 @@ var pwhaas = new Pwhaas();
 
 pwhaas
     .init({ apiKey: "[Your API Key Here]" })
-    .then(function(options) {
+    .then(function(maxLocalOptions) {
         // pwhaas is ready to use!
     });
 
