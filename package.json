@@ -1,7 +1,7 @@
 {
   "name": "pwhaas",
   "version": "1.0.2",
-  "description": "Client library for pwhaas, a password hashing service",
+  "description": "Hash passwords with the same powerful hardware used by attackers",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jdconley/pwhaas-js.git"
@@ -18,8 +18,7 @@
     "password",
     "hash",
     "hashing",
-    "bcrypt",
-    "scrypt",
+    "security",
     "argon2"
   ],
   "author": {
