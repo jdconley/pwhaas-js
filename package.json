@@ -9,7 +9,7 @@
   "scripts": {
     "compile": "tslint --project tslint.json && tsc -d && tsc -p . && babel -d dist/src-babeled/ dist/src/ && babel -d dist/test-babeled/ dist/test/ && cp -rf dist/src-babeled/* dist/src/ && cp -rf dist/test-babeled/* dist/test/",
     "prepublish": "rm -rf dist && npm run compile",
-    "pretest": "npm run compile",
+    "pretest": "npm run compile && cp test/*.js dist/test",
     "test": "mocha dist/test/*.js"
   },
   "main": "dist/src/index.js",
