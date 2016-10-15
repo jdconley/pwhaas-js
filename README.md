@@ -18,7 +18,7 @@ utilized in order to make the resulting hashes difficult to crack with GPUs or A
 processors.
 
 By default this module will connect to api.pwhaas.com and hash on a VM with 8 CPU cores.
-It will hash for 500ms. For free. For higher security hashes utilizing 10's of CPU cores
+It will hash for 1,000ms. For free. For higher security hashes utilizing 10's of CPU cores
 in parallel, and higher performance servers running on metal (no VM) you'll have to sign
 up for an account.
 
@@ -50,8 +50,7 @@ npm install --save pwhaas
 ## Usage
 If you are either hosting your own [pwhaas](https://github.com/jdconley/pwhaas) compatible
 instance or have a paid account on [pwhaas.com](https://www.pwhaas.com) you'll want to set
-some options. You can do this with either enviroment variables or via a call to `setOptions`
-on the `Pwhaas` instance.
+some options. You can do this with either enviroment variables or with a Javascript object.
 
 ### Set options with environment variables
 You can set the options via environment variables. Remember to keep your API Key private
@@ -74,12 +73,26 @@ export PWHAAS_API_TIMEOUT=5000
 ```
 
 ### Set options via code
-If you want to, you can also set the options via a Javascript object. Remember to keep your
-API Key private and don't commit it to any public repos. Yes, I repeated myself :).
+If you want to, you can also set the options via a Javascript object. This can be done
+with the `setOptions` function or when you make your call to `init`.
+
+Remember to keep your API Key private and don't commit it to any public repos. Yes,
+I repeated myself. :)
 
 ```js
 
 pwhaas.setOptions({
+    apiKey: "[Your API Key Here]",
+    maxtime: 250,
+    serviceRootUri: "https://api.pwhaas.com",
+    request: {
+        timeout: 5000
+    }
+});
+
+// OR....
+
+await pwhaas.init({
     apiKey: "[Your API Key Here]",
     maxtime: 250,
     serviceRootUri: "https://api.pwhaas.com",
@@ -99,7 +112,7 @@ const plain = "password";
 
 // Init the service once before using it.
 // This will find some secure hash options to use for local hashing in case pwhaas is unreachable.
-await pwhaas.init();
+await pwhaas.init({ apiKey: "[Your API Key Here]" });
 
 // Hashing happens in an asynchronous event using libuv so your system can
 // still process other IO items in the Node.JS queue, such as web requests.
@@ -152,7 +165,7 @@ pwhaas.init({ apiKey: "[Your API Key Here]" })
 ```
 
 ## Advanced Usage
-You can specify your api key and the service root Uri when you `init` your pwhaas service.
+You can also specify your api key and the service root uri when you `init` your pwhaas service.
  
 The defaults global options are:
 
@@ -187,7 +200,8 @@ above that utilize the singleton.
 
 import { Pwhaas } from "pwhaas";
 
-const pwhaas = new Pwhaas();
+// You can specify options on the constructor of this class
+const pwhaas = new Pwhaas({ apiKey: "[Your API Key Here]" });
 
 const maxLocalOptions = await pwhaas.init();
 
@@ -200,6 +214,7 @@ var Pwhaas = require("pwhaas").Pwhaas;
 
 var pwhaas = new Pwhaas();
 
+// You can also specify options on the init() function
 pwhaas
     .init({ apiKey: "[Your API Key Here]" })
     .then(function(maxLocalOptions) {

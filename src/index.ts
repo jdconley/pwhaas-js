@@ -38,7 +38,7 @@ let hashOptions: argon2.Options = {
 };
 
 export interface PwhaasService {
-    init(): Promise<argon2.Options>;
+    init(options?: ClientOptions): Promise<argon2.Options>;
     hash(plain: string | Buffer, maxtime?: number): Promise<HashResponse>;
     verify(hash: string, plain: string | Buffer): Promise<VerifyResponse>;
     generateSalt(length?: number): Promise<Buffer>;
@@ -167,8 +167,11 @@ export class Pwhaas implements PwhaasService {
         this.client.setOptions(options);
     }
 
-    async init(): Promise<argon2.Options> {
+    async init(options?: ClientOptions): Promise<argon2.Options> {
         this.maxLocalOptions = await argon2.getMaxOptions();
+        if (options) {
+            this.setOptions(options);
+        };
         return this.maxLocalOptions;
     }
 

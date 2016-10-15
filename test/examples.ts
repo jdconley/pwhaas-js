@@ -54,7 +54,7 @@ describe("can run the examples", () => {
     it("can create an instance of Pwhaas", async function(): Promise<any> {
         this.timeout(0);
 
-        const pwhaas = new Pwhaas();
+        const pwhaas = new Pwhaas({ apiKey: "[Your API Key Here]" });
 
         await pwhaas.init();
 
