@@ -34,7 +34,7 @@ let hashOptions: argon2.Options = {
     timeCost: 3,
     memoryCost: 12,
     parallelism: 1,
-    argon2d: false
+    type: argon2.argon2i
 };
 
 export interface PwhaasService {
