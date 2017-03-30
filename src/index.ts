@@ -238,7 +238,7 @@ export class Pwhaas implements PwhaasService {
 
         const hashDesc = `Hash: ${hashResult.timing.hash}ms.`;
         const threadsDesc = `Threads: ${hashResult.options.parallelism}`;
-        const memoryDesc = `Memory: ${Math.pow(2, hashResult.options.memoryCost) * 1024}MB`;
+        const memoryDesc = `Memory: ${Math.pow(2, hashResult.options.memoryCost) / 1024}MB`;
         const iterationsDesc = `Iterations: ${hashResult.options.timeCost}`;
 
         this.logOutput(`${overallDesc} ${hashDesc} ${threadsDesc} ${memoryDesc} ${iterationsDesc}`);
