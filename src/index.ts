@@ -9,6 +9,8 @@ export interface ClientOptions {
     serviceRootUri?: string;
     maxtime?: number;
     request?: rp.RequestPromiseOptions;
+    disableLocalHashingFallback?: boolean;
+    disablePreHash?: boolean;
 }
 
 const pwhaasDefaultApiKey = "[Your API Key Here]";
@@ -17,13 +19,15 @@ const pwhaasDefaultApiRootUri = "https://api.pwhaas.com";
 export const defaultClientOptions: () => ClientOptions = () => {
     return {
         apiKey: process.env.PWHAAS_API_KEY || pwhaasDefaultApiKey,
-        maxtime: process.env.PWHAAS_MAX_TIME || 500,
+        maxtime: process.env.PWHAAS_MAX_TIME ? parseInt(process.env.PWHAAS_MAX_TIME) : 500,
         serviceRootUri: process.env.PWHAAS_ROOT_URI || pwhaasDefaultApiRootUri,
         request: {
             method: "POST",
             json: true,
-            timeout: process.env.PWHAAS_API_TIMEOUT || 5000
-        }
+            timeout: process.env.PWHAAS_API_TIMEOUT ? parseInt(process.env.PWHAAS_API_TIMEOUT) : 5000
+        },
+        disableLocalHashingFallback: !!process.env.PWHAAS_DISABLE_LOCAL_HASHING_FALLBACK,
+        disablePreHash: !!process.env.PWHAAS_DISABLE_PRE_HASH
     };
 };
 
@@ -117,12 +121,13 @@ export class PwhaasClient {
 
 class LocalHash {
     private static supportedHashVersions = {
-        "0": true
+        "0": true, // Initial version
+        "1": true  // Supports no pre-hashing
     };
 
-    static hashVersion = "0";
+    static hashVersion = "1";
 
-    constructor(public remoteHash: string, public localSalt: Buffer) {
+    constructor(public remoteHash: string, public localSalt: Buffer, public preHashDisabled?: boolean) {
     }
 
     static from(encodedHash: string): LocalHash {
@@ -131,17 +136,34 @@ class LocalHash {
             throw new Error("Unrecognized hash. Was it created with pwhaas?");
         }
 
-        if (!LocalHash.supportedHashVersions[parts[1]]) {
+        const hashVersion = parts[1];
+        if (!LocalHash.supportedHashVersions[hashVersion]) {
             throw new Error("Unsupported hash version. Maybe you need to update pwhaas?");
         }
 
-        const localSalt = Buffer.from(parts[2], "base64");
+        // Version 0 required a salt
+        if (hashVersion === "0") {
+            const localSalt = Buffer.from(parts[2], "base64");
 
-        return new LocalHash(parts[3], localSalt);
+            return new LocalHash(parts[3], localSalt);
+        }
+
+        // Version 1 no longer requires salt
+        // If salt is not included, we assume local hash was disabled
+        if (hashVersion === "1") {
+            const encodedSalt = parts[2];
+            const localSalt = encodedSalt ? Buffer.from(encodedSalt, "base64") : null;
+
+            return new LocalHash(parts[3], localSalt, !localSalt);
+        }
+
+        // This is unreachable
+        // Leaving it here as a reminder to add in parsing code when the version changes
+        throw new Error(`Parser not implemented for hash version "${parts[1]}". Implement one.`);
     }
 
     toString(): string {
-        const saltStr = this.localSalt.toString("base64");
+        const saltStr = this.localSalt ? this.localSalt.toString("base64") : "";
 
         // Tag this so we know it is our hash, including a version field.
         // Colons are a reasonable/simple separator since salt is base64 encoded.
@@ -168,10 +190,14 @@ export class Pwhaas implements PwhaasService {
     }
 
     async init(options?: ClientOptions): Promise<argon2.Options> {
-        this.maxLocalOptions = await argon2.getMaxOptions();
         if (options) {
             this.setOptions(options);
         };
+
+        // Don't need to get max options if we do not do hash locally
+        if (!this.options.disableLocalHashingFallback) {
+            this.maxLocalOptions = await argon2.getMaxOptions();
+        }
         return this.maxLocalOptions;
     }
 
@@ -192,15 +218,25 @@ export class Pwhaas implements PwhaasService {
 
         const startHrTime = process.hrtime();
 
-        const salt = await this.generateSalt();
-        const saltElapsedHr = process.hrtime(startHrTime);
-        const secretPlain = await argon2.hash(plain, salt, hashOptions);
+        let secretPlain = plain;
+        let saltElapsedHr = startHrTime;
+        let salt: Buffer = null;
+        if (!this.options.disablePreHash) {
+            salt = await this.generateSalt();
+            saltElapsedHr = process.hrtime(startHrTime);
+            secretPlain = await argon2.hash(plain, salt, hashOptions);
+        }
 
         let hashResult: HashResponse;
 
         try {
             hashResult = await this.client.hash(secretPlain, maxtime);
         } catch (error) {
+            // We may be configured to not hash locally -- just throw the error
+            if (this.options.disableLocalHashingFallback) {
+                throw error;
+            }
+
             if (!this.maxLocalOptions) {
                 await this.init();
             }
@@ -227,7 +263,7 @@ export class Pwhaas implements PwhaasService {
         // This is so we can reproduce the operations used to recreate 
         // the hashed password during the verify step, without having to 
         // store the weaker intermediate hash anywhere.
-        const localhash = new LocalHash(hashResult.hash, salt);
+        const localhash = new LocalHash(hashResult.hash, salt, this.options.disablePreHash);
         hashResult.hash = localhash.toString();
 
         const elapsedHrTime = process.hrtime(startHrTime);
@@ -257,13 +293,20 @@ export class Pwhaas implements PwhaasService {
 
         // Use the same salt we used when hashing locally before.
         const localHash = LocalHash.from(hash);
-        const secretPlain = await argon2.hash(plain, localHash.localSalt, defaultClientOptions());
+        let secretPlain = plain;
+        if (!localHash.preHashDisabled) {
+            secretPlain = await argon2.hash(plain, localHash.localSalt, hashOptions);
+        }
 
         // Try to do the verify remotely. If fail, do it locally (bummer).
         let verifyResp: VerifyResponse;
         try {
             verifyResp = await this.client.verify(localHash.remoteHash, secretPlain);
         } catch (error) {
+            if (this.options.disableLocalHashingFallback) {
+                throw error;
+            }
+
             const verifyStart = process.hrtime();
             const localMatch = await argon2.verify(localHash.remoteHash, secretPlain);
             const verifyElapsed = process.hrtime(verifyStart);

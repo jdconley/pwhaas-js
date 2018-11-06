@@ -48,7 +48,7 @@ describe("can run the examples", () => {
         const hashResponse = await pwhaas.hash("password", 1000);
 
         chai.assert.isNotNull(hashResponse.hash, "didn't actually hash");
-        chai.assert.isNotTrue(hashResponse.local, "password doesn't match hash");
+        chai.assert.isNotTrue(hashResponse.local, "hash was done locally");
     });
 
     it("can create an instance of Pwhaas", async function(): Promise<any> {
@@ -61,6 +61,6 @@ describe("can run the examples", () => {
         const hashResponse = await pwhaas.hash("password", 100);
 
         chai.assert.isNotNull(hashResponse.hash, "didn't actually hash");
-        chai.assert.isNotTrue(hashResponse.local, "password doesn't match hash");
+        chai.assert.isNotTrue(hashResponse.local, "hash was done locally");
     });
 });
